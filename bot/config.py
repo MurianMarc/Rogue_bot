@@ -27,6 +27,19 @@ def _int(name: str, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+def _optional_int(name: str, *, allow_zero: bool = False) -> int | None:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    if parsed > 0 or (allow_zero and parsed == 0):
+        return parsed
+    return None
+
+
 def _list(name: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in os.getenv(name, "").split(",") if item.strip())
 
@@ -45,6 +58,8 @@ class Settings:
     ollama_timeout_seconds: int = _int("OLLAMA_TIMEOUT_SECONDS", 90)
     ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
     ollama_num_predict: int = _int("OLLAMA_NUM_PREDICT", 220)
+    ollama_num_thread: int | None = _optional_int("OLLAMA_NUM_THREAD")
+    ollama_num_gpu: int | None = _optional_int("OLLAMA_NUM_GPU", allow_zero=True)
     system_prompt: str = os.getenv(
         "SYSTEM_PROMPT",
         "You are a helpful WhatsApp assistant. Keep answers clear, friendly, and concise.",

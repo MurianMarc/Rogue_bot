@@ -20,15 +20,21 @@ class OllamaClient:
             *self._history[chat_id],
             {"role": "user", "content": question},
         ]
+        options = {
+            "temperature": 0.7,
+            "num_predict": self.settings.ollama_num_predict,
+        }
+        if self.settings.ollama_num_thread:
+            options["num_thread"] = self.settings.ollama_num_thread
+        if self.settings.ollama_num_gpu is not None:
+            options["num_gpu"] = self.settings.ollama_num_gpu
+
         payload = {
             "model": self.settings.ollama_model,
             "stream": False,
             "keep_alive": self.settings.ollama_keep_alive,
             "messages": messages,
-            "options": {
-                "temperature": 0.7,
-                "num_predict": self.settings.ollama_num_predict,
-            },
+            "options": options,
         }
         timeout = aiohttp.ClientTimeout(total=self.settings.ollama_timeout_seconds)
 
