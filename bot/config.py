@@ -43,6 +43,8 @@ class Settings:
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
     ollama_timeout_seconds: int = _int("OLLAMA_TIMEOUT_SECONDS", 90)
+    ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+    ollama_num_predict: int = _int("OLLAMA_NUM_PREDICT", 220)
     system_prompt: str = os.getenv(
         "SYSTEM_PROMPT",
         "You are a helpful WhatsApp assistant. Keep answers clear, friendly, and concise.",

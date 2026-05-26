@@ -23,8 +23,12 @@ class OllamaClient:
         payload = {
             "model": self.settings.ollama_model,
             "stream": False,
+            "keep_alive": self.settings.ollama_keep_alive,
             "messages": messages,
-            "options": {"temperature": 0.7},
+            "options": {
+                "temperature": 0.7,
+                "num_predict": self.settings.ollama_num_predict,
+            },
         }
         timeout = aiohttp.ClientTimeout(total=self.settings.ollama_timeout_seconds)
 
