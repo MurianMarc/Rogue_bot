@@ -1,0 +1,4 @@
+aiohttp>=3.9.0
+imageio-ffmpeg>=0.5.1
+python-dotenv>=1.0.1
+git+https://github.com/Nubuki-all/neonize@patch-1
