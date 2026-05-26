@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import random
+import time
 from dataclasses import dataclass
 from typing import Awaitable, Callable
 
@@ -15,6 +17,14 @@ from .config import Settings
 
 LOG = logging.getLogger(__name__)
 Handler = Callable[["CommandContext", str], Awaitable[None]]
+TextHandler = Callable[["CommandContext", str], Awaitable[bool]]
+UNKNOWN_COMMAND_REPLIES = (
+    "bro are you okay?",
+    "please use your glasses",
+    "ngl what",
+    "i will just assume you mean !help",
+    "no.",
+)
 
 
 @dataclass(slots=True)
@@ -24,6 +34,7 @@ class CommandContext:
     message: MessageEv
     text: str
     chat_id: str
+    received_at: float
 
     @property
     def chat_jid(self):
@@ -53,6 +64,8 @@ class RogueBot:
         self.settings = settings
         self.ai = ai
         self.commands: dict[str, Handler] = {}
+        self.text_handlers: list[TextHandler] = []
+        self.started_at = time.perf_counter()
 
     def command(self, name: str) -> Callable[[Handler], Handler]:
         def decorator(handler: Handler) -> Handler:
@@ -61,7 +74,12 @@ class RogueBot:
 
         return decorator
 
+    def on_text(self, handler: TextHandler) -> TextHandler:
+        self.text_handlers.append(handler)
+        return handler
+
     async def handle_message(self, client: NewAClient, message: MessageEv) -> None:
+        received_at = time.perf_counter()
         if message.Info.MessageSource.IsFromMe:
             return
 
@@ -76,14 +94,20 @@ class RogueBot:
         if not text:
             return
 
-        ctx = CommandContext(self, client, message, text, chat_id)
+        ctx = CommandContext(self, client, message, text, chat_id, received_at)
         parsed = self._parse_command(text)
         if parsed:
             name, args = parsed
             handler = self.commands.get(name)
             if handler:
                 await handler(ctx, args)
+            else:
+                await ctx.reply(random.choice(UNKNOWN_COMMAND_REPLIES))
             return
+
+        for handler in self.text_handlers:
+            if await handler(ctx, text):
+                return
 
         if self.settings.enable_auto_question_mark and text.startswith("?"):
             handler = self.commands.get("ask")

@@ -18,3 +18,8 @@ sessions/
 logs/
 .runtime/
 *.log
+storage/*
+!storage/.gitkeep
+!storage/stickers/
+storage/stickers/*
+!storage/stickers/.gitkeep

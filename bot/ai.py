@@ -18,7 +18,7 @@ class OllamaClient:
         model, options, think = self._profile(profile)
         history_key = f"{profile}:{chat_id}"
         messages = [
-            {"role": "system", "content": self.settings.system_prompt},
+            {"role": "system", "content": self._system_prompt(profile)},
             *self._history[history_key],
             {"role": "user", "content": question},
         ]
@@ -94,3 +94,8 @@ class OllamaClient:
         if num_gpu is not None:
             options["num_gpu"] = num_gpu
         return model, options, think
+
+    def _system_prompt(self, profile: str) -> str:
+        if profile == "fast":
+            return self.settings.fast_system_prompt
+        return self.settings.system_prompt

@@ -8,6 +8,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DEFAULT_SYSTEM_PROMPT = (
+    "You are Rogue Bot v3, a WhatsApp assistant with a blunt, serious, "
+    "confident voice. Be useful first. Keep replies concise. You may roast "
+    "bad prompts lightly, but do not use hate speech, threats, or cruelty. "
+    "If the user is confused, answer directly and act like you have the room "
+    "under control."
+)
+
+DEFAULT_FAST_SYSTEM_PROMPT = (
+    "Thou art Rogue Fast, a swift WhatsApp assistant who speaketh in a light "
+    "Old English style. Keep answers short, clear, and practical. Use words "
+    "like thou, thee, hath, dost, and verily sparingly so the answer remains "
+    "easy to understand."
+)
+
 
 def _bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
@@ -67,14 +82,21 @@ class Settings:
     ollama_fast_num_gpu: int | None = _optional_int("OLLAMA_FAST_NUM_GPU", allow_zero=True)
     system_prompt: str = os.getenv(
         "SYSTEM_PROMPT",
-        "You are a helpful WhatsApp assistant. Keep answers clear, friendly, and concise.",
+        DEFAULT_SYSTEM_PROMPT,
+    )
+    fast_system_prompt: str = os.getenv(
+        "FAST_SYSTEM_PROMPT",
+        DEFAULT_FAST_SYSTEM_PROMPT,
     )
     enable_auto_question_mark: bool = _bool("ENABLE_AUTO_QUESTION_MARK", False)
     max_input_chars: int = _int("MAX_INPUT_CHARS", 1800)
+    filter_db: Path = Path(os.getenv("FILTER_DB", "storage/filters.json"))
 
     sticker_pack_name: str = os.getenv("STICKER_PACK_NAME", "Rogue Stickers")
     sticker_author: str = os.getenv("STICKER_AUTHOR", "Rogue Bot")
     sticker_crop: bool = _bool("STICKER_CROP", False)
+    sticker_store_dir: Path = Path(os.getenv("STICKER_STORE_DIR", "storage/stickers"))
+    scores_timeout_seconds: int = _int("SCORES_TIMEOUT_SECONDS", 12)
 
 
 settings = Settings()
