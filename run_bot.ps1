@@ -5,6 +5,8 @@ $python = Join-Path $root ".venv\Scripts\python.exe"
 $logs = Join-Path $root "logs"
 $envFile = Join-Path $root ".env"
 $envExample = Join-Path $root ".env.example"
+$runtimeBin = Join-Path $root ".runtime\bin"
+$ffmpegInstaller = Join-Path $root "install_ffmpeg.ps1"
 
 if (-not (Test-Path -LiteralPath $logs)) {
     New-Item -ItemType Directory -Path $logs | Out-Null
@@ -28,6 +30,19 @@ function Test-OllamaApi {
     }
 }
 
+function Add-RuntimeBinToPath {
+    if ((Test-Path -LiteralPath $runtimeBin) -and -not ($env:PATH.Split([IO.Path]::PathSeparator) -contains $runtimeBin)) {
+        $env:PATH = $runtimeBin + [IO.Path]::PathSeparator + $env:PATH
+    }
+}
+
+function Test-CommandAvailable {
+    param([string]$Name)
+
+    Add-RuntimeBinToPath
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
 Set-Location -LiteralPath $root
 Write-Log "Starting Rogue Bot launcher."
 
@@ -39,6 +54,21 @@ if (-not (Test-Path -LiteralPath $python)) {
 if (-not (Test-Path -LiteralPath $envFile) -and (Test-Path -LiteralPath $envExample)) {
     Copy-Item -LiteralPath $envExample -Destination $envFile
     Write-Log "Created .env from .env.example."
+}
+
+Add-RuntimeBinToPath
+if ((-not (Test-CommandAvailable "ffmpeg")) -or (-not (Test-CommandAvailable "ffprobe"))) {
+    if (Test-Path -LiteralPath $ffmpegInstaller) {
+        try {
+            Write-Log "Installing local FFmpeg tools for stickers."
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ffmpegInstaller *>> $logFile
+            Add-RuntimeBinToPath
+        } catch {
+            Write-Log "Could not install FFmpeg tools automatically: $_"
+        }
+    } else {
+        Write-Log "FFmpeg tools are missing; stickers that need conversion may fail."
+    }
 }
 
 $ollamaPath = $null
@@ -72,5 +102,6 @@ if (-not (Test-OllamaApi)) {
 }
 
 Write-Log "Launching bot."
-& $python -m bot *>> $logFile
+$botCommand = 'call "{0}" -m bot >> "{1}" 2>&1' -f $python, $logFile
+& cmd.exe /d /s /c $botCommand
 Write-Log "Bot process stopped."
