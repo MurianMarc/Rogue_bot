@@ -13,7 +13,9 @@ def register_commands(app: RogueBot) -> None:
             "\n".join(
                 [
                     f"{app.settings.bot_name} commands:",
-                    f"{prefix}ask <question> - ask the local AI",
+                    f"{prefix}ask <question> - use the smart GPU model",
+                    f"{prefix}fast <question> - use the lighter CPU model",
+                    f"{prefix}models - show active AI models",
                     f"{prefix}sticker [name] - make a sticker from media or replied media",
                     f"{prefix}reset - clear this chat's short AI memory",
                     f"{prefix}id - show this chat ID for ALLOWED_CHATS",
@@ -38,36 +40,24 @@ def register_commands(app: RogueBot) -> None:
 
     @app.command("ask")
     async def ask_command(ctx: CommandContext, args: str) -> None:
-        question = args.strip()
-        if not question:
-            await ctx.reply(f"Send {prefix}ask followed by your question.")
-            return
+        await answer_question(ctx, args, "smart")
 
-        if len(question) > app.settings.max_input_chars:
-            await ctx.reply(
-                f"That question is too long. Keep it under "
-                f"{app.settings.max_input_chars} characters."
-            )
-            return
+    @app.command("fast")
+    async def fast_command(ctx: CommandContext, args: str) -> None:
+        await answer_question(ctx, args, "fast")
 
-        await ctx.typing(True)
-        try:
-            answer = await app.ai.ask(ctx.chat_id, question)
-            await ctx.reply(answer)
-        except Exception as exc:
-            await ctx.reply(
-                "\n".join(
-                    [
-                        "I could not reach the local AI.",
-                        "Make sure Ollama is running and the model is installed:",
-                        f"ollama pull {app.settings.ollama_model}",
-                        "ollama serve",
-                        f"Error: {exc}",
-                    ]
-                )
+    @app.command("models")
+    async def models_command(ctx: CommandContext, args: str) -> None:
+        await ctx.reply(
+            "\n".join(
+                [
+                    "Active AI profiles:",
+                    f"Smart GPU: {app.settings.ollama_model}",
+                    f"Fast CPU: {app.settings.ollama_fast_model}",
+                ]
             )
-        finally:
-            await ctx.typing(False)
+        )
+
     @app.command("sticker")
     async def sticker_command(ctx: CommandContext, args: str) -> None:
         source = find_sticker_source(ctx.message.Message)
@@ -93,5 +83,44 @@ def register_commands(app: RogueBot) -> None:
             )
         except Exception as exc:
             await ctx.reply(f"I could not make that sticker: {exc}")
+        finally:
+            await ctx.typing(False)
+
+    async def answer_question(ctx: CommandContext, args: str, profile: str) -> None:
+        question = args.strip()
+        command = "fast" if profile == "fast" else "ask"
+        model = (
+            app.settings.ollama_fast_model
+            if profile == "fast"
+            else app.settings.ollama_model
+        )
+
+        if not question:
+            await ctx.reply(f"Send {prefix}{command} followed by your question.")
+            return
+
+        if len(question) > app.settings.max_input_chars:
+            await ctx.reply(
+                f"That question is too long. Keep it under "
+                f"{app.settings.max_input_chars} characters."
+            )
+            return
+
+        await ctx.typing(True)
+        try:
+            answer = await app.ai.ask(ctx.chat_id, question, profile=profile)
+            await ctx.reply(answer)
+        except Exception as exc:
+            await ctx.reply(
+                "\n".join(
+                    [
+                        "I could not reach the local AI.",
+                        "Make sure Ollama is running and the model is installed:",
+                        f"ollama pull {model}",
+                        "ollama serve",
+                        f"Error: {exc}",
+                    ]
+                )
+            )
         finally:
             await ctx.typing(False)

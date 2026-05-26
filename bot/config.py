@@ -55,11 +55,16 @@ class Settings:
 
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+    ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3:1.7b")
     ollama_timeout_seconds: int = _int("OLLAMA_TIMEOUT_SECONDS", 90)
     ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
     ollama_num_predict: int = _int("OLLAMA_NUM_PREDICT", 220)
+    ollama_fast_num_predict: int = _int("OLLAMA_FAST_NUM_PREDICT", 160)
+    ollama_think: bool = _bool("OLLAMA_THINK", False)
+    ollama_fast_think: bool = _bool("OLLAMA_FAST_THINK", False)
     ollama_num_thread: int | None = _optional_int("OLLAMA_NUM_THREAD")
     ollama_num_gpu: int | None = _optional_int("OLLAMA_NUM_GPU", allow_zero=True)
+    ollama_fast_num_gpu: int | None = _optional_int("OLLAMA_FAST_NUM_GPU", allow_zero=True)
     system_prompt: str = os.getenv(
         "SYSTEM_PROMPT",
         "You are a helpful WhatsApp assistant. Keep answers clear, friendly, and concise.",
