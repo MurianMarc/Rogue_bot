@@ -17,12 +17,36 @@ def register_commands(app: RogueBot) -> None:
     filters = FilterStore(app.settings.filter_db)
     games = GameHub()
 
+    @app.on_raw
+    async def game_raw_listener(ctx: CommandContext) -> bool:
+        return await games.handle_raw(ctx)
+
+    @app.on_text
+    async def game_private_listener(ctx: CommandContext, text: str) -> bool:
+        return await games.handle_private_text(ctx, text)
+
     @app.on_text
     async def filter_listener(ctx: CommandContext, text: str) -> bool:
         reply = filters.match(ctx.chat_id, text)
         if not reply:
             return False
-        await ctx.reply(reply)
+        if reply.kind == "text":
+            await ctx.reply(reply.value)
+            return True
+
+        sticker_path = filters.sticker_path(app.settings.sticker_store_dir, reply)
+        if not sticker_path.exists():
+            await ctx.reply("That sticker filter points to a missing file.")
+            return True
+
+        await ctx.client.send_sticker(
+            ctx.chat_jid,
+            sticker_path.read_bytes(),
+            quoted=ctx.message,
+            name=app.settings.sticker_author,
+            packname=app.settings.sticker_pack_name,
+            passthrough=True,
+        )
         return True
 
     @app.command("help")
@@ -35,9 +59,13 @@ def register_commands(app: RogueBot) -> None:
                     f"{prefix}fast <question> - use the lighter CPU model",
                     f"{prefix}models - show active AI models",
                     f"{prefix}scores - show current football scores",
-                    f"{prefix}onyx - show Onyx integration status",
-                    f"{prefix}game start - play Rogue Trial",
-                    f"{prefix}filter <word> | <reply> - save an auto-reply filter",
+                    f"{prefix}game start - play Mafia in groups",
+                    f"{prefix}join <nickname> - join a Mafia lobby",
+                    f"{prefix}skip - skip Mafia discussion",
+                    f"{prefix}nominate <nickname> - nominate a Mafia suspect",
+                    f"{prefix}vote <nickname> - vote fallback for Mafia polls",
+                    f"{prefix}filter <word> | <reply> - save a text auto-reply",
+                    f"{prefix}filter <word> - save a sticker filter from replied media",
                     f"{prefix}filters - list this chat's filters",
                     f"{prefix}del_filter <word|all> - delete filters",
                     f"{prefix}sticker [name] - make a sticker from media or replied media",
@@ -95,35 +123,61 @@ def register_commands(app: RogueBot) -> None:
         finally:
             await ctx.typing(False)
 
-    @app.command("onyx")
-    async def onyx_command(ctx: CommandContext, args: str) -> None:
-        await ctx.reply(
-            "\n".join(
-                [
-                    "Onyx check:",
-                    "Yes, Onyx can share this bot's local Ollama models.",
-                    "The Ollama Onyx guide is for wiring Onyx to Ollama as a chat/RAG UI.",
-                    "Direct WhatsApp-to-Onyx mode needs an Onyx API service URL, so this bot keeps using Ollama directly for now.",
-                ]
-            )
-        )
-
     @app.command("game")
     async def game_command(ctx: CommandContext, args: str) -> None:
         await games.handle(ctx, args)
 
+    @app.command("join")
+    async def join_command(ctx: CommandContext, args: str) -> None:
+        await games.join(ctx, args)
+
+    @app.command("skip")
+    async def skip_command(ctx: CommandContext, args: str) -> None:
+        await games.skip(ctx)
+
+    @app.command("nominate")
+    async def nominate_command(ctx: CommandContext, args: str) -> None:
+        await games.nominate(ctx, args)
+
+    @app.command("vote")
+    async def vote_command(ctx: CommandContext, args: str) -> None:
+        await games.vote(ctx, args)
+
     @app.command("filter")
     async def filter_command(ctx: CommandContext, args: str) -> None:
-        parsed = parse_filter_args(ctx, args)
+        raw = args.strip()
+        if not raw:
+            await ctx.reply(
+                f"Use {prefix}filter <word> | <reply>, "
+                f"or reply to text/sticker media with {prefix}filter <word>."
+            )
+            return
+
+        if "|" not in raw:
+            source = find_sticker_source(ctx.message.Message)
+            if source:
+                await ctx.typing(True)
+                try:
+                    media = await download_media(ctx.client, source)
+                    created = await create_sticker(media, source, app.settings, raw)
+                    filters.add_sticker(ctx.chat_id, raw, created.sticker_path)
+                    await ctx.reply(f"Saved sticker filter: {raw.casefold()}")
+                except Exception as exc:
+                    await ctx.reply(f"I could not save that sticker filter: {exc}")
+                finally:
+                    await ctx.typing(False)
+                return
+
+        parsed = parse_filter_args(ctx, raw)
         if not parsed:
             await ctx.reply(
                 f"Use {prefix}filter <word> | <reply>, "
-                f"or reply to text with {prefix}filter <word>."
+                f"or reply to text/sticker media with {prefix}filter <word>."
             )
             return
         trigger, reply = parsed
         try:
-            filters.add(ctx.chat_id, trigger, reply)
+            filters.add_text(ctx.chat_id, trigger, reply)
         except ValueError as exc:
             await ctx.reply(str(exc))
             return

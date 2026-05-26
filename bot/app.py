@@ -18,12 +18,34 @@ from .config import Settings
 LOG = logging.getLogger(__name__)
 Handler = Callable[["CommandContext", str], Awaitable[None]]
 TextHandler = Callable[["CommandContext", str], Awaitable[bool]]
+RawHandler = Callable[["CommandContext"], Awaitable[bool]]
 UNKNOWN_COMMAND_REPLIES = (
     "bro are you okay?",
     "please use your glasses",
-    "ngl what",
+    "nga what",
     "i will just assume you mean !help",
     "no.",
+    "crayyy wayyyy",
+    "wrong command buddy",
+    "licky licky",
+    "go back to primary one",
+    "ummm",
+    "wksowjwiwssosijs since we speaking jargon now",
+    "?",
+    "estoy loco",
+    "son 😭",
+    "come again?",
+    "lol, you do you",
+    "i'm not sure what you mean, but ok",
+    "i'm just a bot, but that doesn't sound right",
+    "kindly off your phone",
+    "i'm not sure that's a real command",
+    "error 404: command not found",
+    "i'm not sure how to respond to that",
+    "huh?",
+    "i don't understand, but that's fine",
+    "i'm not sure what you want, but ok",
+    "that's not a command, but interesting",
 )
 
 
@@ -39,6 +61,19 @@ class CommandContext:
     @property
     def chat_jid(self):
         return self.message.Info.MessageSource.Chat
+
+    @property
+    def sender_jid(self):
+        return self.message.Info.MessageSource.Sender
+
+    @property
+    def sender_id(self) -> str:
+        sender = Jid2String(self.sender_jid)
+        return sender or self.chat_id
+
+    @property
+    def is_group(self) -> bool:
+        return bool(self.message.Info.MessageSource.IsGroup or self.chat_id.endswith("@g.us"))
 
     async def reply(self, text: str) -> None:
         chunks = split_text(text, 3500)
@@ -64,6 +99,7 @@ class RogueBot:
         self.settings = settings
         self.ai = ai
         self.commands: dict[str, Handler] = {}
+        self.raw_handlers: list[RawHandler] = []
         self.text_handlers: list[TextHandler] = []
         self.started_at = time.perf_counter()
 
@@ -73,6 +109,10 @@ class RogueBot:
             return handler
 
         return decorator
+
+    def on_raw(self, handler: RawHandler) -> RawHandler:
+        self.raw_handlers.append(handler)
+        return handler
 
     def on_text(self, handler: TextHandler) -> TextHandler:
         self.text_handlers.append(handler)
@@ -91,10 +131,15 @@ class RogueBot:
         sender = Jid2String(message.Info.MessageSource.Sender)
         LOG.info("chat=%s sender=%s text=%s", chat_id, sender, text or "[media]")
 
+        ctx = CommandContext(self, client, message, text, chat_id, received_at)
+
+        for handler in self.raw_handlers:
+            if await handler(ctx):
+                return
+
         if not text:
             return
 
-        ctx = CommandContext(self, client, message, text, chat_id, received_at)
         parsed = self._parse_command(text)
         if parsed:
             name, args = parsed
