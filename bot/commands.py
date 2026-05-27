@@ -15,7 +15,7 @@ from .stickers import create_sticker, sticker_summary
 def register_commands(app: RogueBot) -> None:
     prefix = app.settings.cmd_prefix
     filters = FilterStore(app.settings.filter_db)
-    games = GameHub()
+    games = GameHub(app)
     super_last_used: dict[str, float] = {}
 
     @app.on_raw
@@ -61,11 +61,14 @@ def register_commands(app: RogueBot) -> None:
                     f"{prefix}super <question> - use qwen3:14b with cooldown",
                     f"{prefix}models - show active AI models",
                     f"{prefix}scores - show current football scores",
-                    f"{prefix}game start - play Mafia in groups",
+                    f"{prefix}game start [players] - open Mafia lobby, 9 minimum",
+                    f"{prefix}game begin - host starts the Mafia game",
                     f"{prefix}join <nickname> - join a Mafia lobby",
                     f"{prefix}skip - skip Mafia discussion",
                     f"{prefix}nominate <nickname> - nominate a Mafia suspect",
                     f"{prefix}vote <nickname> - vote fallback for Mafia polls",
+                    f"{prefix}team <message> - Mafia/Medic private team chat in DM",
+                    f"{prefix}kill/{prefix}protect/{prefix}investigate <nickname> - Mafia night DM actions",
                     f"{prefix}filter <word> | <reply> - save a text auto-reply",
                     f"{prefix}filter <word> - save a sticker filter from replied media",
                     f"{prefix}filters - list this chat's filters",
@@ -162,6 +165,22 @@ def register_commands(app: RogueBot) -> None:
     @app.command("vote")
     async def vote_command(ctx: CommandContext, args: str) -> None:
         await games.vote(ctx, args)
+
+    @app.command("kill")
+    async def kill_command(ctx: CommandContext, args: str) -> None:
+        await games.private_action_command(ctx, "kill", args)
+
+    @app.command("protect")
+    async def protect_command(ctx: CommandContext, args: str) -> None:
+        await games.private_action_command(ctx, "protect", args)
+
+    @app.command("investigate")
+    async def investigate_command(ctx: CommandContext, args: str) -> None:
+        await games.private_action_command(ctx, "investigate", args)
+
+    @app.command("team")
+    async def team_command(ctx: CommandContext, args: str) -> None:
+        await games.team_chat(ctx, args)
 
     @app.command("filter")
     async def filter_command(ctx: CommandContext, args: str) -> None:

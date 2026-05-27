@@ -16,9 +16,11 @@ Rogue Bot is a WhatsApp bot focused on quick AI replies and sticker creation.
 - Random rude-but-playful replies for unknown commands.
 - `!ping` latency and uptime check.
 - `!scores` live football score lookup.
-- Group-only Mafia game with `!game start`, `!join`, `!skip`, `!nominate`, and `!vote`.
-- Mafia roles for Mafia, Medic, Detective, Jester, and Town players.
-- Mafia night actions through DMs and group voting through WhatsApp polls.
+- Group-only Mafia game with flexible lobby sizes, host-controlled start, `!join`, `!skip`, `!nominate`, and `!vote`.
+- Scaled Mafia roles with Mafia teams, Medic teams, one Detective, Jester, Town players, and a rare triple-Jester setup.
+- Sequential Mafia night actions through DMs in Mafia, Medic, Detective order, using nicknames or `!kill`, `!protect`, and `!investigate`.
+- Private `!team` relay for Mafia and Medic coordination.
+- Suspense-styled Mafia preludes and night stories with optional local AI narration.
 - Text and sticker filters with `!filter`, `!filters`, and `!del_filter`.
 - Sticker maker with `!sticker`.
 - Sticker creation from attached images, GIFs, short videos, or replied media.

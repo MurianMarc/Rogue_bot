@@ -70,7 +70,21 @@ class CommandContext:
     @property
     def sender_id(self) -> str:
         sender = Jid2String(self.sender_jid)
-        return sender or self.chat_id
+        return canonical_jid_id(sender or self.chat_id)
+
+    @property
+    def sender_aliases(self) -> tuple[str, ...]:
+        source = self.message.Info.MessageSource
+        values = [safe_jid_string(source.Sender), safe_jid_string(getattr(source, "SenderAlt", None))]
+        if not self.is_group:
+            values.append(safe_jid_string(source.Chat))
+
+        aliases: list[str] = []
+        for value in values:
+            alias = canonical_jid_id(value)
+            if alias and alias not in aliases:
+                aliases.append(alias)
+        return tuple(aliases)
 
     @property
     def is_group(self) -> bool:
@@ -227,3 +241,20 @@ def split_text(text: str, max_length: int) -> list[str]:
 def string_to_jid(value: str) -> JID:
     user, _, server = value.partition("@")
     return JID(User=user, Server=server, RawAgent=0, Device=0, Integrator=0)
+
+
+def canonical_jid_id(value: str | None) -> str:
+    if not value:
+        return ""
+    user, separator, server = value.partition("@")
+    if not separator:
+        return value
+    user = user.split(":", 1)[0]
+    return f"{user}@{server}"
+
+
+def safe_jid_string(value: object) -> str:
+    try:
+        return Jid2String(value)
+    except Exception:
+        return ""
