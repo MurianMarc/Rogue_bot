@@ -660,14 +660,38 @@ class GameHub:
         await self._start_night(session, client)
 
     async def _discussion_timeout(self, session: MafiaSession, client: Any) -> None:
-        await asyncio.sleep(DISCUSSION_SECONDS)
-        if self._sessions.get(session.group_id) is session and session.stage == "discussion":
+        if await self._countdown(session, client, "discussion", DISCUSSION_SECONDS, "Discussion"):
             await self._start_nominations(session, client)
 
     async def _vote_timeout(self, session: MafiaSession, client: Any) -> None:
-        await asyncio.sleep(VOTE_SECONDS)
-        if self._sessions.get(session.group_id) is session and session.stage == "voting":
+        if await self._countdown(session, client, "voting", VOTE_SECONDS, "Vote"):
             await self._finish_vote(session, client)
+
+    async def _countdown(
+        self,
+        session: MafiaSession,
+        client: Any,
+        stage: str,
+        total_seconds: int,
+        label: str,
+    ) -> bool:
+        remaining = total_seconds
+        while remaining > 0:
+            interval = min(10, remaining)
+            await asyncio.sleep(interval)
+            remaining -= interval
+            if self._sessions.get(session.group_id) is not session or session.stage != stage:
+                return False
+            if remaining > 0:
+                try:
+                    await client.send_message(
+                        session.group_jid,
+                        f"{label} countdown: {remaining}s left.",
+                        link_preview=False,
+                    )
+                except Exception as exc:
+                    LOG.warning("Could not send Mafia countdown tick: %s", exc)
+        return self._sessions.get(session.group_id) is session and session.stage == stage
 
     async def _send_role_dm(self, client: Any, session: MafiaSession, player: Player) -> None:
         descriptions = {
@@ -1027,7 +1051,9 @@ class GameHub:
 
     def _cancel_timer(self, session: MafiaSession) -> None:
         if session.timer_task and not session.timer_task.done():
-            session.timer_task.cancel()
+            current = asyncio.current_task()
+            if session.timer_task is not current:
+                session.timer_task.cancel()
         session.timer_task = None
 
 

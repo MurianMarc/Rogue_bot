@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import time
 
 from neonize.utils.message import extract_text
@@ -10,6 +11,10 @@ from .games import GameHub
 from .media import download_media, find_sticker_source, quoted_message
 from .scores import live_scores
 from .stickers import create_sticker, sticker_summary
+
+DENIAL_REPLIES = ("no.", "lmao", "son😭")
+COMMAND_DENIAL_CHANCE = 0.375
+FILTER_TRIGGER_DENIAL_CHANCE = 0.10
 
 
 def register_commands(app: RogueBot) -> None:
@@ -27,6 +32,9 @@ def register_commands(app: RogueBot) -> None:
         reply = filters.match(ctx.chat_id, text)
         if not reply:
             return False
+        if random.random() < FILTER_TRIGGER_DENIAL_CHANCE:
+            await ctx.reply("nah reply the filter yourself")
+            return True
         if reply.kind == "text":
             await ctx.reply(reply.value)
             return True
@@ -180,6 +188,10 @@ def register_commands(app: RogueBot) -> None:
 
     @app.command("filter")
     async def filter_command(ctx: CommandContext, args: str) -> None:
+        if random.random() < COMMAND_DENIAL_CHANCE:
+            await ctx.reply(random.choice(DENIAL_REPLIES))
+            return
+
         raw = args.strip()
         if not raw:
             await ctx.reply(
@@ -243,6 +255,10 @@ def register_commands(app: RogueBot) -> None:
 
     @app.command("sticker")
     async def sticker_command(ctx: CommandContext, args: str) -> None:
+        if random.random() < COMMAND_DENIAL_CHANCE:
+            await ctx.reply(random.choice(DENIAL_REPLIES))
+            return
+
         source = find_sticker_source(ctx.message.Message)
         if not source:
             await ctx.reply(
