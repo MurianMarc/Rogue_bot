@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="${SERVICE_NAME:-rogue-bot}"
 INSTALL_SERVICE="${INSTALL_SERVICE:-1}"
+SWAP_SIZE_MB="${SWAP_SIZE_MB:-1024}"
 
 log() {
   printf '[vps-bot] %s\n' "$1"
@@ -14,8 +15,41 @@ install_packages() {
     log "Installing Linux packages."
     sudo apt-get update
     sudo apt-get install -y python3 python3-venv python3-pip git ffmpeg libmagic1
+  elif command -v dnf >/dev/null 2>&1; then
+    log "Installing Linux packages with dnf."
+    sudo dnf install -y python3 python3-pip git file-libs
+    if ! command -v ffmpeg >/dev/null 2>&1; then
+      sudo dnf install -y oracle-epel-release-el9 || true
+      sudo dnf install -y ffmpeg || log "ffmpeg was not available. Static image stickers still work."
+    fi
   else
-    log "apt-get not found. Install python3, python3-venv, git, ffmpeg, and libmagic manually."
+    log "apt-get/dnf not found. Install python3, pip, git, ffmpeg, and libmagic manually."
+  fi
+}
+
+ensure_swap() {
+  if [[ "$SWAP_SIZE_MB" == "0" ]]; then
+    log "Skipping swap setup."
+    return
+  fi
+
+  if [[ -s /proc/swaps ]] && awk 'NR > 1 { found = 1 } END { exit !found }' /proc/swaps; then
+    log "Swap is already enabled."
+    return
+  fi
+
+  local swapfile="/swapfile"
+  log "Creating ${SWAP_SIZE_MB}MB swap file for low-memory VPS stability."
+  if command -v fallocate >/dev/null 2>&1; then
+    sudo fallocate -l "${SWAP_SIZE_MB}M" "$swapfile"
+  else
+    sudo dd if=/dev/zero of="$swapfile" bs=1M count="$SWAP_SIZE_MB"
+  fi
+  sudo chmod 600 "$swapfile"
+  sudo mkswap "$swapfile"
+  sudo swapon "$swapfile"
+  if ! grep -q "^$swapfile " /etc/fstab; then
+    echo "$swapfile none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null
   fi
 }
 
@@ -58,9 +92,14 @@ SERVICE
 
 cd "$ROOT"
 install_packages
+ensure_swap
 
 log "Creating Python virtual environment."
-python3 -m venv .venv
+if ! python3 -m venv .venv; then
+  log "python3 venv failed; trying virtualenv fallback."
+  python3 -m pip install --user virtualenv
+  python3 -m virtualenv .venv
+fi
 
 log "Installing Python dependencies."
 "$ROOT/.venv/bin/python" -m pip install --upgrade pip

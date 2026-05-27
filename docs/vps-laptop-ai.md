@@ -11,6 +11,32 @@ This setup keeps the WhatsApp bot online on a VPS while your laptop runs the hea
 
 Do not expose Ollama port `11434` directly to the public internet. Use Tailscale or another private tunnel.
 
+## 1 GB VPS Mode
+
+The bot can run on a 1 GB Oracle micro VM because Ollama stays on your laptop.
+The VPS example config enables:
+
+```env
+LOW_MEMORY_MODE=true
+STICKER_MAX_INPUT_MB=4
+STICKER_ANIMATED_ENABLED=false
+SCORES_MAX_LEAGUES=4
+```
+
+That keeps normal image stickers, sticker filters, scores, Mafia, and WhatsApp commands working while avoiding big video/GIF conversion spikes. Animated/video stickers can be turned back on later, but keep them off on a 1 GB server unless you add more swap.
+
+The setup script also creates a 1 GB swap file by default. To change it:
+
+```bash
+SWAP_SIZE_MB=2048 bash scripts/setup_vps_bot.sh
+```
+
+To skip swap:
+
+```bash
+SWAP_SIZE_MB=0 bash scripts/setup_vps_bot.sh
+```
+
 ## Laptop
 
 Install and sign in to Tailscale on the laptop, then run:

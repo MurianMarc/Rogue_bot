@@ -28,11 +28,20 @@ LEAGUES = (
 
 async def live_scores(settings: Settings) -> str:
     timeout = aiohttp.ClientTimeout(total=settings.scores_timeout_seconds)
+    leagues = LEAGUES[: settings.scores_max_leagues]
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        results = await asyncio.gather(
-            *(_fetch_league(session, league) for league in LEAGUES),
-            return_exceptions=True,
-        )
+        if settings.low_memory_mode:
+            results = []
+            for league in leagues:
+                try:
+                    results.append(await _fetch_league(session, league))
+                except Exception as exc:
+                    results.append(exc)
+        else:
+            results = await asyncio.gather(
+                *(_fetch_league(session, league) for league in leagues),
+                return_exceptions=True,
+            )
 
     live: list[str] = []
     other: list[str] = []

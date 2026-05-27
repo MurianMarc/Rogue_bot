@@ -27,6 +27,7 @@ Rogue Bot is a WhatsApp bot focused on quick AI replies and sticker creation.
 - Command-only behavior by default, so it responds only when called.
 - Optional `?` auto-question mode for quick prompts.
 - Optional chat allow-listing with `ALLOWED_CHATS`.
+- Low-memory VPS mode for 1 GB servers when AI runs on another machine.
 - `!id` command to show the current chat ID.
 - Built-in help with `!help`.
 - Bundled FFmpeg support for video and GIF sticker conversion.

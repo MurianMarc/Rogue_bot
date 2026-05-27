@@ -31,6 +31,18 @@ def _bool(name: str, default: bool = False) -> bool:
     return value.strip().casefold() in {"1", "true", "yes", "y", "on"}
 
 
+def _optional_bool(name: str) -> bool | None:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return None
+    return value.strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
+def _bool_with_default(name: str, default: bool) -> bool:
+    value = _optional_bool(name)
+    return default if value is None else value
+
+
 def _int(name: str, default: int) -> int:
     value = os.getenv(name)
     if not value:
@@ -90,13 +102,34 @@ class Settings:
     )
     enable_auto_question_mark: bool = _bool("ENABLE_AUTO_QUESTION_MARK", False)
     max_input_chars: int = _int("MAX_INPUT_CHARS", 1800)
+    low_memory_mode: bool = _bool("LOW_MEMORY_MODE", False)
     filter_db: Path = Path(os.getenv("FILTER_DB", "storage/filters.json"))
 
     sticker_pack_name: str = os.getenv("STICKER_PACK_NAME", "Rogue Stickers")
     sticker_author: str = os.getenv("STICKER_AUTHOR", "Rogue Bot")
     sticker_crop: bool = _bool("STICKER_CROP", False)
     sticker_store_dir: Path = Path(os.getenv("STICKER_STORE_DIR", "storage/stickers"))
+    sticker_max_input_mb: int = _int(
+        "STICKER_MAX_INPUT_MB",
+        4 if _bool("LOW_MEMORY_MODE", False) else 12,
+    )
+    sticker_animated_enabled: bool = _bool_with_default(
+        "STICKER_ANIMATED_ENABLED",
+        not _bool("LOW_MEMORY_MODE", False),
+    )
+    sticker_animated_seconds: int = _int(
+        "STICKER_ANIMATED_SECONDS",
+        3 if _bool("LOW_MEMORY_MODE", False) else 6,
+    )
+    sticker_animated_fps: int = _int(
+        "STICKER_ANIMATED_FPS",
+        8 if _bool("LOW_MEMORY_MODE", False) else 15,
+    )
     scores_timeout_seconds: int = _int("SCORES_TIMEOUT_SECONDS", 12)
+    scores_max_leagues: int = _int(
+        "SCORES_MAX_LEAGUES",
+        4 if _bool("LOW_MEMORY_MODE", False) else 7,
+    )
 
 
 settings = Settings()
