@@ -16,11 +16,11 @@ DEFAULT_SYSTEM_PROMPT = (
     "under control."
 )
 
-DEFAULT_FAST_SYSTEM_PROMPT = (
-    "Thou art Rogue Fast, a swift WhatsApp assistant who speaketh in a light "
-    "Old English style. Keep answers short, clear, and practical. Use words "
-    "like thou, thee, hath, dost, and verily sparingly so the answer remains "
-    "easy to understand."
+DEFAULT_SUPER_SYSTEM_PROMPT = (
+    "You are Rogue Super, the strongest reasoning profile of Rogue Bot v3. "
+    "Be serious, confident, direct, and more thorough than normal ask. "
+    "Use the extra intelligence for planning, code, debugging, strategy, "
+    "and hard questions. Keep the attitude controlled, not childish."
 )
 
 
@@ -81,25 +81,31 @@ class Settings:
     allowed_chats: tuple[str, ...] = _list("ALLOWED_CHATS")
 
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
-    ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
-    ollama_fast_model: str = os.getenv("OLLAMA_FAST_MODEL", "qwen3:1.7b")
-    ollama_timeout_seconds: int = _int("OLLAMA_TIMEOUT_SECONDS", 90)
+    ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+    ollama_super_model: str = os.getenv("OLLAMA_SUPER_MODEL", "qwen3:14b")
+    ollama_timeout_seconds: int = _int("OLLAMA_TIMEOUT_SECONDS", 240)
     ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
     ollama_num_predict: int = _int("OLLAMA_NUM_PREDICT", 220)
-    ollama_fast_num_predict: int = _int("OLLAMA_FAST_NUM_PREDICT", 160)
+    ollama_super_num_predict: int = _int("OLLAMA_SUPER_NUM_PREDICT", 220)
     ollama_think: bool = _bool("OLLAMA_THINK", False)
-    ollama_fast_think: bool = _bool("OLLAMA_FAST_THINK", False)
+    ollama_super_think: bool = _bool("OLLAMA_SUPER_THINK", False)
     ollama_num_thread: int | None = _optional_int("OLLAMA_NUM_THREAD")
     ollama_num_gpu: int | None = _optional_int("OLLAMA_NUM_GPU", allow_zero=True)
-    ollama_fast_num_gpu: int | None = _optional_int("OLLAMA_FAST_NUM_GPU", allow_zero=True)
+    ollama_super_num_gpu: int | None = _optional_int("OLLAMA_SUPER_NUM_GPU", allow_zero=True)
     system_prompt: str = os.getenv(
         "SYSTEM_PROMPT",
         DEFAULT_SYSTEM_PROMPT,
     )
-    fast_system_prompt: str = os.getenv(
-        "FAST_SYSTEM_PROMPT",
-        DEFAULT_FAST_SYSTEM_PROMPT,
+    super_system_prompt: str = os.getenv(
+        "SUPER_SYSTEM_PROMPT",
+        DEFAULT_SUPER_SYSTEM_PROMPT,
     )
+    require_init: bool = _bool("REQUIRE_INIT", True)
+    init_secret: str = os.getenv("INIT_SECRET", "").strip()
+    allowlist_db: Path = Path(os.getenv("ALLOWLIST_DB", "storage/allowed_chats.json"))
+    announce_online: bool = _bool("ANNOUNCE_ONLINE", True)
+    online_message: str = os.getenv("ONLINE_MESSAGE", "bot is now online")
+    super_cooldown_seconds: int = _int("SUPER_COOLDOWN_SECONDS", 120)
     enable_auto_question_mark: bool = _bool("ENABLE_AUTO_QUESTION_MARK", False)
     max_input_chars: int = _int("MAX_INPUT_CHARS", 1800)
     low_memory_mode: bool = _bool("LOW_MEMORY_MODE", False)

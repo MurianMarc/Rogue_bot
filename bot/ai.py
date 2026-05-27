@@ -60,7 +60,7 @@ class OllamaClient:
     def reset(self, chat_id: str) -> None:
         self._history.pop(chat_id, None)
         self._history.pop(f"smart:{chat_id}", None)
-        self._history.pop(f"fast:{chat_id}", None)
+        self._history.pop(f"super:{chat_id}", None)
 
     def _remember(self, chat_id: str, role: str, content: str) -> None:
         history = self._history[chat_id]
@@ -68,18 +68,14 @@ class OllamaClient:
         del history[:-8]
 
     def _profile(self, profile: str) -> tuple[str, dict[str, int | float], bool]:
-        if profile == "fast":
-            model = self.settings.ollama_fast_model
-            think = self.settings.ollama_fast_think
+        if profile == "super":
+            model = self.settings.ollama_super_model
+            think = self.settings.ollama_super_think
             options = {
-                "temperature": 0.7,
-                "num_predict": self.settings.ollama_fast_num_predict,
+                "temperature": 0.55,
+                "num_predict": self.settings.ollama_super_num_predict,
             }
-            num_gpu = (
-                0
-                if self.settings.ollama_fast_num_gpu is None
-                else self.settings.ollama_fast_num_gpu
-            )
+            num_gpu = self.settings.ollama_super_num_gpu
         else:
             model = self.settings.ollama_model
             think = self.settings.ollama_think
@@ -96,6 +92,6 @@ class OllamaClient:
         return model, options, think
 
     def _system_prompt(self, profile: str) -> str:
-        if profile == "fast":
-            return self.settings.fast_system_prompt
+        if profile == "super":
+            return self.settings.super_system_prompt
         return self.settings.system_prompt

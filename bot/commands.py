@@ -16,6 +16,7 @@ def register_commands(app: RogueBot) -> None:
     prefix = app.settings.cmd_prefix
     filters = FilterStore(app.settings.filter_db)
     games = GameHub()
+    super_last_used: dict[str, float] = {}
 
     @app.on_raw
     async def game_raw_listener(ctx: CommandContext) -> bool:
@@ -55,8 +56,9 @@ def register_commands(app: RogueBot) -> None:
             "\n".join(
                 [
                     f"{app.settings.bot_name} commands:",
-                    f"{prefix}ask <question> - use the smart GPU model",
-                    f"{prefix}fast <question> - use the lighter CPU model",
+                    f"{prefix}init - authorize this DM/group",
+                    f"{prefix}ask <question> - use qwen3:8b",
+                    f"{prefix}super <question> - use qwen3:14b with cooldown",
                     f"{prefix}models - show active AI models",
                     f"{prefix}scores - show current football scores",
                     f"{prefix}game start - play Mafia in groups",
@@ -84,6 +86,16 @@ def register_commands(app: RogueBot) -> None:
         uptime_seconds = int(time.perf_counter() - app.started_at)
         await ctx.reply(f"pong | latency {latency_ms}ms | uptime {format_duration(uptime_seconds)}")
 
+    @app.command("init")
+    async def init_command(ctx: CommandContext, args: str) -> None:
+        provided = args.strip()
+        if app.settings.init_secret and provided != app.settings.init_secret:
+            await ctx.reply("Wrong init secret. Nice try.")
+            return
+
+        app.allowlist.authorize(ctx.chat_id)
+        await ctx.reply("Authorized. This chat is now on my allowlist.")
+
     @app.command("id")
     async def id_command(ctx: CommandContext, args: str) -> None:
         await ctx.reply(f"Chat ID:\n{ctx.chat_id}")
@@ -97,9 +109,16 @@ def register_commands(app: RogueBot) -> None:
     async def ask_command(ctx: CommandContext, args: str) -> None:
         await answer_question(ctx, args, "smart")
 
-    @app.command("fast")
-    async def fast_command(ctx: CommandContext, args: str) -> None:
-        await answer_question(ctx, args, "fast")
+    @app.command("super")
+    async def super_command(ctx: CommandContext, args: str) -> None:
+        now = time.monotonic()
+        last_used = super_last_used.get(ctx.chat_id, 0)
+        wait_seconds = int(app.settings.super_cooldown_seconds - (now - last_used))
+        if wait_seconds > 0:
+            await ctx.reply(f"Super ask is cooling down. Try again in {wait_seconds}s.")
+            return
+        if await answer_question(ctx, args, "super"):
+            super_last_used[ctx.chat_id] = time.monotonic()
 
     @app.command("models")
     async def models_command(ctx: CommandContext, args: str) -> None:
@@ -107,8 +126,9 @@ def register_commands(app: RogueBot) -> None:
             "\n".join(
                 [
                     "Active AI profiles:",
-                    f"Smart GPU: {app.settings.ollama_model}",
-                    f"Fast CPU: {app.settings.ollama_fast_model}",
+                    f"Ask: {app.settings.ollama_model}",
+                    f"Super ask: {app.settings.ollama_super_model}",
+                    f"Super cooldown: {app.settings.super_cooldown_seconds}s",
                 ]
             )
         )
@@ -238,30 +258,31 @@ def register_commands(app: RogueBot) -> None:
     async def stickers_command(ctx: CommandContext, args: str) -> None:
         await ctx.reply(sticker_summary(app.settings))
 
-    async def answer_question(ctx: CommandContext, args: str, profile: str) -> None:
+    async def answer_question(ctx: CommandContext, args: str, profile: str) -> bool:
         question = args.strip()
-        command = "fast" if profile == "fast" else "ask"
+        command = "super" if profile == "super" else "ask"
         model = (
-            app.settings.ollama_fast_model
-            if profile == "fast"
+            app.settings.ollama_super_model
+            if profile == "super"
             else app.settings.ollama_model
         )
 
         if not question:
             await ctx.reply(f"Send {prefix}{command} followed by your question.")
-            return
+            return False
 
         if len(question) > app.settings.max_input_chars:
             await ctx.reply(
                 f"That question is too long. Keep it under "
                 f"{app.settings.max_input_chars} characters."
             )
-            return
+            return False
 
         await ctx.typing(True)
         try:
             answer = await app.ai.ask(ctx.chat_id, question, profile=profile)
             await ctx.reply(answer)
+            return True
         except Exception as exc:
             await ctx.reply(
                 "\n".join(
@@ -274,6 +295,7 @@ def register_commands(app: RogueBot) -> None:
                     ]
                 )
             )
+            return False
         finally:
             await ctx.typing(False)
 

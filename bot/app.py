@@ -9,10 +9,11 @@ from typing import Awaitable, Callable
 from neonize.aioze.client import NewAClient
 from neonize.aioze.events import MessageEv
 from neonize.utils.enum import ChatPresence, ChatPresenceMedia
-from neonize.utils.jid import Jid2String
+from neonize.utils.jid import JID, Jid2String
 from neonize.utils.message import extract_text
 
 from .ai import OllamaClient
+from .auth import AllowlistStore
 from .config import Settings
 
 LOG = logging.getLogger(__name__)
@@ -98,6 +99,7 @@ class RogueBot:
     def __init__(self, settings: Settings, ai: OllamaClient):
         self.settings = settings
         self.ai = ai
+        self.allowlist = AllowlistStore(settings.allowlist_db, settings.allowed_chats)
         self.commands: dict[str, Handler] = {}
         self.raw_handlers: list[RawHandler] = []
         self.text_handlers: list[TextHandler] = []
@@ -124,14 +126,18 @@ class RogueBot:
             return
 
         chat_id = Jid2String(message.Info.MessageSource.Chat)
-        if not self._chat_is_allowed(chat_id):
-            return
-
         text = (extract_text(message.Message) or "").strip()
         sender = Jid2String(message.Info.MessageSource.Sender)
         LOG.info("chat=%s sender=%s text=%s", chat_id, sender, text or "[media]")
 
         ctx = CommandContext(self, client, message, text, chat_id, received_at)
+        parsed = self._parse_command(text) if text else None
+        if not self._chat_is_allowed(chat_id):
+            if parsed and parsed[0] == "init":
+                handler = self.commands.get("init")
+                if handler:
+                    await handler(ctx, parsed[1])
+            return
 
         for handler in self.raw_handlers:
             if await handler(ctx):
@@ -140,7 +146,6 @@ class RogueBot:
         if not text:
             return
 
-        parsed = self._parse_command(text)
         if parsed:
             name, args = parsed
             handler = self.commands.get(name)
@@ -170,7 +175,18 @@ class RogueBot:
         return name.casefold(), args.strip()
 
     def _chat_is_allowed(self, chat_id: str) -> bool:
-        return not self.settings.allowed_chats or chat_id in self.settings.allowed_chats
+        if self.allowlist.is_allowed(chat_id):
+            return True
+        return not self.settings.require_init and not self.settings.allowed_chats
+
+    async def announce_online(self, client: NewAClient) -> None:
+        if not self.settings.announce_online:
+            return
+        for chat_id in self.allowlist.all_chat_ids():
+            try:
+                await client.send_message(string_to_jid(chat_id), self.settings.online_message, link_preview=False)
+            except Exception as exc:
+                LOG.warning("Could not announce online to %s: %s", chat_id, exc)
 
 
 def split_text(text: str, max_length: int) -> list[str]:
@@ -188,3 +204,8 @@ def split_text(text: str, max_length: int) -> list[str]:
     if remaining:
         chunks.append(remaining)
     return chunks
+
+
+def string_to_jid(value: str) -> JID:
+    user, _, server = value.partition("@")
+    return JID(User=user, Server=server)

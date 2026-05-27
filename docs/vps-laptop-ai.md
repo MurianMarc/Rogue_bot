@@ -5,9 +5,9 @@ This setup keeps the WhatsApp bot online on a VPS while your laptop runs the hea
 ## What Stays Online
 
 - The VPS runs the Python WhatsApp bot, filters, stickers, scores, and Mafia game.
-- The laptop runs Ollama and the smart/fast AI models.
+- The laptop runs Ollama and the ask/super AI models.
 - The VPS calls the laptop through a private Tailscale IP.
-- If the laptop is off, the bot stays online, but `!ask` and `!fast` cannot answer until Ollama is back.
+- If the laptop is off, the bot stays online, but `!ask` and `!super` cannot answer until Ollama is back.
 
 Do not expose Ollama port `11434` directly to the public internet. Use Tailscale or another private tunnel.
 
@@ -82,7 +82,7 @@ OLLAMA_URL=http://100.x.y.z:11434
 PH_NUMBER=234xxxxxxxxxx
 ```
 
-Make sure `OLLAMA_MODEL` and `OLLAMA_FAST_MODEL` match models installed on the laptop.
+Make sure `OLLAMA_MODEL` and `OLLAMA_SUPER_MODEL` match models installed on the laptop.
 
 Then install and start the bot:
 

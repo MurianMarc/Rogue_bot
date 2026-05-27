@@ -23,6 +23,7 @@ def build_bot() -> tuple[NewAClient, RogueBot]:
     @client.event(ConnectedEv)
     async def on_connected(_: NewAClient, __: ConnectedEv) -> None:
         logging.info("%s connected.", settings.bot_name)
+        await app.announce_online(client)
 
     @client.event(PairStatusEv)
     async def on_pair_status(_: NewAClient, event: PairStatusEv) -> None:

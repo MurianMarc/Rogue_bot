@@ -4,11 +4,13 @@ Rogue Bot is a WhatsApp bot focused on quick AI replies and sticker creation.
 
 ## Features
 
-- Smart AI question answering with `!ask <question>`.
-- Fast CPU AI answers with `!fast <question>`.
-- Separate smart and fast model personalities.
+- Smart AI question answering with `!ask <question>` using `qwen3:8b`.
+- Rate-limited super AI answers with `!super <question>` using `qwen3:14b`.
+- Persistent `!init` authorization for DMs and groups.
+- Online announcement to authorized chats when the bot connects.
+- Separate smart and super model personalities.
 - Local AI support through Ollama, so questions can be answered without paid API calls.
-- Smart GPU model and fast CPU model deployment script.
+- Model optimizer and warm-up script for `qwen3:8b` and `qwen3:14b`.
 - Short per-chat memory for follow-up questions.
 - `!reset` command to clear a chat's AI memory.
 - Random rude-but-playful replies for unknown commands.
