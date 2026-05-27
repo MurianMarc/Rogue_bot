@@ -59,7 +59,6 @@ class MafiaSession:
     nominations: dict[str, str] = field(default_factory=dict)
     vote_options: list[str] = field(default_factory=list)
     votes: dict[str, str] = field(default_factory=dict)
-    poll_id: str | None = None
     timer_task: asyncio.Task[None] | None = None
     night_number: int = 1
     day_number: int = 1
@@ -102,7 +101,7 @@ class GameHub:
                     "!game begin - host starts once the target is reached",
                     "!skip - skip discussion once half the living players agree",
                     "!nominate <nickname> - nominate during voting setup",
-                    "!vote <nickname> - text fallback if the poll misbehaves",
+                    "!vote <nickname> - vote for one listed nominee",
                     "!team <message> - private Mafia or Medic team relay in bot DM",
                     "!game status - show the current game",
                     "!game stop - stop the game if you hosted it",
@@ -425,42 +424,6 @@ class GameHub:
             return
         await self._relay_team_message(ctx.client, session, player, args.strip())
 
-    async def handle_raw(self, ctx: CommandContext) -> bool:
-        if not ctx.is_group:
-            return False
-
-        poll_update = ctx.message.Message.pollUpdateMessage
-        if not poll_update.ByteSize():
-            return False
-
-        session = self._sessions.get(ctx.chat_id)
-        if not session or session.stage != "voting" or not session.poll_id:
-            return False
-        if poll_update.pollCreationMessageKey.ID != session.poll_id:
-            return False
-
-        player = session.players.get(ctx.sender_id)
-        if not player or not player.alive:
-            return True
-
-        try:
-            vote_message = await ctx.client.decrypt_poll_vote(ctx.message.Message)
-        except Exception as exc:
-            LOG.warning("Could not decrypt Mafia poll vote: %s", exc)
-            return True
-
-        selected = self._selected_poll_option(vote_message.selectedOptions)
-        if not selected:
-            session.votes.pop(player.user_id, None)
-            return True
-
-        target = self._find_vote_option(session, selected)
-        if target:
-            session.votes[player.user_id] = target.user_id
-            if self._all_living_voted(session):
-                await self._finish_vote(session, ctx.client)
-        return True
-
     async def _start_game(self, session: MafiaSession, client: Any) -> None:
         self._cancel_timer(session)
         session.stage = "night"
@@ -474,7 +437,6 @@ class GameHub:
         session.nominations.clear()
         session.votes.clear()
         session.vote_options.clear()
-        session.poll_id = None
 
         player_ids = list(session.players)
         random.shuffle(player_ids)
@@ -504,7 +466,6 @@ class GameHub:
         session.nominations.clear()
         session.votes.clear()
         session.vote_options.clear()
-        session.poll_id = None
         self._clear_pending_routes(session)
         self._cancel_timer(session)
 
@@ -624,34 +585,20 @@ class GameHub:
         session.vote_options = nominee_ids
         session.votes.clear()
         options = [session.players[player_id].nickname for player_id in nominee_ids]
-        poll_created = False
-
-        try:
-            poll = await client.build_poll_vote_creation(
-                "Mafia vote: who leaves?",
-                options,
-                1,
-            )
-            response = await client.send_message(session.group_jid, poll)
-            session.poll_id = response.ID
-            poll_created = True
-        except Exception as exc:
-            LOG.warning("Could not create Mafia poll: %s", exc)
 
         await client.send_message(
             session.group_jid,
             "\n".join(
                 [
-                    "Vote now.",
-                    "Nominees: " + ", ".join(options),
-                    "Use the poll if it appears. If WhatsApp acts possessed, use !vote <nickname>.",
+                    "Vote now by text only.",
+                    "Nominees:",
+                    *[f"- {name}" for name in options],
+                    "Use !vote <nickname>.",
                     f"Voting closes in {VOTE_SECONDS}s.",
                 ]
             ),
             link_preview=False,
         )
-        if not poll_created:
-            await client.send_message(session.group_jid, "Poll failed, so text votes only.", link_preview=False)
         session.timer_task = asyncio.create_task(self._vote_timeout(session, client))
 
     async def _finish_vote(self, session: MafiaSession, client: Any) -> None:
@@ -1077,14 +1024,6 @@ class GameHub:
         if not nick or nick.startswith("!") or len(nick) > 24 or "\n" in nick:
             return ""
         return nick
-
-    def _selected_poll_option(self, selected_options: Any) -> str:
-        if not selected_options:
-            return ""
-        option = selected_options[0]
-        if isinstance(option, bytes):
-            return option.decode("utf-8", "ignore").strip()
-        return str(option).strip()
 
     def _cancel_timer(self, session: MafiaSession) -> None:
         if session.timer_task and not session.timer_task.done():

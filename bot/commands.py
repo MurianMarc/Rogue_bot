@@ -18,10 +18,6 @@ def register_commands(app: RogueBot) -> None:
     games = GameHub(app)
     super_last_used: dict[str, float] = {}
 
-    @app.on_raw
-    async def game_raw_listener(ctx: CommandContext) -> bool:
-        return await games.handle_raw(ctx)
-
     @app.on_text(allow_unlisted=True)
     async def game_private_listener(ctx: CommandContext, text: str) -> bool:
         return await games.handle_private_text(ctx, text)
@@ -66,7 +62,7 @@ def register_commands(app: RogueBot) -> None:
                     f"{prefix}join <nickname> - join a Mafia lobby",
                     f"{prefix}skip - skip Mafia discussion",
                     f"{prefix}nominate <nickname> - nominate a Mafia suspect",
-                    f"{prefix}vote <nickname> - vote fallback for Mafia polls",
+                    f"{prefix}vote <nickname> - vote for a Mafia nominee",
                     f"{prefix}team <message> - Mafia/Medic private team chat in DM",
                     f"{prefix}kill/{prefix}protect/{prefix}investigate <nickname> - Mafia night DM actions",
                     f"{prefix}filter <word> | <reply> - save a text auto-reply",
