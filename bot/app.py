@@ -208,4 +208,4 @@ def split_text(text: str, max_length: int) -> list[str]:
 
 def string_to_jid(value: str) -> JID:
     user, _, server = value.partition("@")
-    return JID(User=user, Server=server)
+    return JID(User=user, Server=server, RawAgent=0, Device=0, Integrator=0)

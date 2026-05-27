@@ -101,7 +101,19 @@ if (-not (Test-OllamaApi)) {
     Write-Log "Ollama API is already running."
 }
 
-Write-Log "Launching bot."
-$botCommand = 'call "{0}" -m bot >> "{1}" 2>&1' -f $python, $logFile
-& cmd.exe /d /s /c $botCommand
-Write-Log "Bot process stopped."
+Write-Log "Launching bot. Live output will also be written to $logFile"
+$env:PYTHONUNBUFFERED = "1"
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    & $python -u -m bot 2>&1 | ForEach-Object {
+        $line = $_.ToString()
+        Add-Content -LiteralPath $logFile -Value $line
+        Write-Host $line
+    }
+    $exitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+Write-Log "Bot process stopped with exit code $exitCode."
+exit $exitCode
