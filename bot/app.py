@@ -103,6 +103,7 @@ class RogueBot:
         self.commands: dict[str, Handler] = {}
         self.raw_handlers: list[RawHandler] = []
         self.text_handlers: list[TextHandler] = []
+        self.unlisted_text_handlers: list[TextHandler] = []
         self.started_at = time.perf_counter()
 
     def command(self, name: str) -> Callable[[Handler], Handler]:
@@ -116,9 +117,21 @@ class RogueBot:
         self.raw_handlers.append(handler)
         return handler
 
-    def on_text(self, handler: TextHandler) -> TextHandler:
-        self.text_handlers.append(handler)
-        return handler
+    def on_text(
+        self,
+        handler: TextHandler | None = None,
+        *,
+        allow_unlisted: bool = False,
+    ):
+        handlers = self.unlisted_text_handlers if allow_unlisted else self.text_handlers
+
+        def decorator(registered_handler: TextHandler) -> TextHandler:
+            handlers.append(registered_handler)
+            return registered_handler
+
+        if handler is None:
+            return decorator
+        return decorator(handler)
 
     async def handle_message(self, client: NewAClient, message: MessageEv) -> None:
         received_at = time.perf_counter()
@@ -137,6 +150,11 @@ class RogueBot:
                 handler = self.commands.get("init")
                 if handler:
                     await handler(ctx, parsed[1])
+                return
+            if text:
+                for handler in self.unlisted_text_handlers:
+                    if await handler(ctx, text):
+                        return
             return
 
         for handler in self.raw_handlers:

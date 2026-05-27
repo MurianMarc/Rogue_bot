@@ -22,7 +22,7 @@ def register_commands(app: RogueBot) -> None:
     async def game_raw_listener(ctx: CommandContext) -> bool:
         return await games.handle_raw(ctx)
 
-    @app.on_text
+    @app.on_text(allow_unlisted=True)
     async def game_private_listener(ctx: CommandContext, text: str) -> bool:
         return await games.handle_private_text(ctx, text)
 

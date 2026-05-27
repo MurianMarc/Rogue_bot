@@ -291,7 +291,8 @@ class GameHub:
 
         player = session.players[player_id]
         action = session.pending_actions[player_id]
-        target = self._find_living_player(session, text)
+        target_text = self._private_action_target(ctx, text, action)
+        target = self._find_living_player(session, target_text)
         if not target:
             await ctx.client.send_message(
                 player.jid,
@@ -695,6 +696,14 @@ class GameHub:
             return None
         player = session.players[player_id]
         return player if player.alive else None
+
+    def _private_action_target(self, ctx: CommandContext, text: str, action: str) -> str:
+        value = " ".join(text.strip().split())
+        prefix = ctx.app.settings.cmd_prefix
+        for marker in (f"{prefix}{action}", action):
+            if value.casefold().startswith(marker + " "):
+                return value[len(marker) :].strip()
+        return value
 
     def _find_vote_option(self, session: MafiaSession, nickname: str) -> Player | None:
         player = self._find_living_player(session, nickname)
